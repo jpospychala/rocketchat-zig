@@ -1,7 +1,7 @@
 .{
     .name = .rocketchat_zig,
     .version = "0.0.0",
-    .fingerprint = 0xbe5555e1f7d0aac1, // Changing this has security and trust implications.
+    .fingerprint = 0xc1a71a608d56ba47, // Changing this has security and trust implications.
     .minimum_zig_version = "0.14.0",
     .dependencies = .{
         .websocket = .{

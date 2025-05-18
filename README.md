@@ -50,7 +50,7 @@ pub fn main() !void {
 
 Fetch
 ```
-$ zig fetch --save git+https://github.com/jpospychala/rocket-chat-zig.git
+$ zig fetch --save git+https://github.com/jpospychala/rocketchat-zig.git
 ```
 
 Add dependency to build.zig (to exe in following example)
