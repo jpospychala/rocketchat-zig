@@ -7,7 +7,28 @@ const MethodMsg = struct {
     msg: []const u8,
     id: []const u8,
     method: []const u8,
-    params: []const LoginMethod,
+    params: MethodParams,
+};
+
+const MethodParamsTg = enum {
+    loginParams,
+    params,
+};
+
+const MethodParams = union(MethodParamsTg) {
+    loginParams: []const LoginMethodParams,
+    params: []const []const u8,
+
+    pub fn jsonStringify(self: @This(), jws: anytype) !void {
+        switch (self) {
+            .loginParams => |loginParams| {
+                try jws.write(loginParams);
+            },
+            .params => |p| {
+                try jws.write(p);
+            },
+        }
+    }
 };
 
 const SubMsg = struct {
@@ -17,7 +38,7 @@ const SubMsg = struct {
     params: []const json.Value,
 };
 
-const LoginMethod = struct {
+const LoginMethodParams = struct {
     password: []const u8,
     user: LoginMethodUser,
 };
@@ -89,10 +110,12 @@ pub const RC = struct {
     }
 
     pub fn login(this: *@This(), username: []const u8, password: []const u8) !void {
-        try this.ddl_method("login", &[_]LoginMethod{
-            LoginMethod{
-                .password = password,
-                .user = .{ .username = username },
+        try this.ddl_method("login", MethodParams{
+            .loginParams = &[_]LoginMethodParams{
+                LoginMethodParams{
+                    .password = password,
+                    .user = .{ .username = username },
+                },
             },
         });
 
@@ -111,9 +134,19 @@ pub const RC = struct {
         });
     }
 
-    pub fn joinRooms(_: @This(), _: []const u8) void {}
+    pub fn joinRooms(this: *@This(), roomId: []const u8) !void {
+        try this.ddl_method("joinRoom", MethodParams{
+            .params = &[_][]const u8{roomId},
+        });
+    }
 
-    pub fn ddl_method(this: *@This(), method: []const u8, params: []const LoginMethod) !void {
+    pub fn getRoomIdByNameOrId(this: *@This(), roomName: []const u8) !void {
+        try this.ddl_method("getRoomIdByNameOrId", MethodParams{
+            .params = &[_][]const u8{roomName},
+        });
+    }
+
+    pub fn ddl_method(this: *@This(), method: []const u8, params: MethodParams) !void {
         const id = try std.fmt.allocPrint(this.allocator, "{d}", .{this.nextId});
         defer this.allocator.free(id);
         this.nextId += 1;

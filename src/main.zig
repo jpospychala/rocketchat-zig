@@ -28,7 +28,7 @@ pub fn main() !void {
     try client.login(username, password);
     try client.reactToMessages(processMessages);
     try client.subscribeToMessages();
-    client.joinRooms("testtesttest");
+    try client.joinRooms("testtesttest");
 
     client.join();
 }
