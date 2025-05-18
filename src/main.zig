@@ -1,12 +1,11 @@
 const std = @import("std");
 const rocketchat = @import("rocket_chat_zig_lib");
 
-const App = struct {
-    client: rocketchat.RC,
-
-    fn init() @This() {}
+pub const std_options = std.Options{
+    .log_level = .debug,
 };
 
+// Sample app that says "yes sir" to any questions asked in room "testtesttest"
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -26,22 +25,25 @@ pub fn main() !void {
     try client.startLoop();
 
     try client.login(username, password);
-    try client.reactToMessages(processMessages);
     try client.subscribeToMessages();
-    try client.joinRooms("testtesttest");
+    const roomName = "testtesttest";
+    const roomId = try client.getRoomId(roomName);
+    try client.joinRoom(roomId);
 
-    client.join();
-}
+    while (true) {
+        const message = client.messages.wait();
+        const room = try client.getRoomName(message.rid);
+        std.debug.print("{s} {s}: {s}\n", .{ room, message.u.?.username, message.msg });
 
-fn processMessages(client: *rocketchat.RC, message: rocketchat.RcMsg) void {
-    //if (message.u._id === myUserId) return;
-    const roomname = try client.getRoomName(message.rid);
-    if (!std.mem.eql(u8, roomname, "testtesttest")) {
-        return;
+        if (!std.mem.eql(u8, message.rid, roomId)) {
+            return;
+        }
+
+        if (std.mem.indexOfScalar(u8, message.msg, '?')) |_| {
+            const response = try client.allocator.dupe(u8, "yes sir");
+            try client.sendToRoomId(response, roomId);
+        }
     }
-    std.debug.print("< {s}\n", .{message.msg});
-    //const response = "nie wiem";
-    //try client.sendToRoomId(response, message.rid);
 }
 
 fn getEnv(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
