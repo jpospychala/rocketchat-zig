@@ -3,11 +3,18 @@ const testing = std.testing;
 const json = std.json;
 const websocket = @import("websocket");
 
-const Msg = struct {
+const MethodMsg = struct {
     msg: []const u8,
     id: []const u8,
     method: []const u8,
     params: []const LoginMethod,
+};
+
+const SubMsg = struct {
+    msg: []const u8,
+    id: []const u8,
+    name: []const u8,
+    params: []const json.Value,
 };
 
 const LoginMethod = struct {
@@ -18,6 +25,12 @@ const LoginMethod = struct {
 const LoginMethodUser = struct {
     username: ?[]const u8,
     //email: ?[]const u8,
+};
+
+pub const RcMsg = struct {
+    rid: []u8, // room id
+    u_id: []u8, // user id
+    msg: []u8, // msg
 };
 
 pub const RC = struct {
@@ -63,7 +76,7 @@ pub const RC = struct {
 
         const msg = try this.allocator.dupe(u8, "{\"msg\":\"connect\",\"version\":\"pre2\",\"support\":[\"pre2\"]}");
         defer this.allocator.free(msg);
-        try this.client.writeText(msg);
+        try this._write(msg);
     }
 
     pub fn startLoop(this: *@This()) !void {
@@ -76,58 +89,70 @@ pub const RC = struct {
     }
 
     pub fn login(this: *@This(), username: []const u8, password: []const u8) !void {
+        try this.ddl_method("login", &[_]LoginMethod{
+            LoginMethod{
+                .password = password,
+                .user = .{ .username = username },
+            },
+        });
+
+        try this.ddl_sub("meteor.loginServiceConfiguration", &[_]json.Value{});
+    }
+
+    pub fn reactToMessages(_: *@This(), _: fn (*@This(), RcMsg) void) !void {
+        // this.msgHandler = handler;
+        // todo: subscibeToMessages if not subscribed already
+    }
+
+    pub fn subscribeToMessages(this: *@This()) !void {
+        try this.ddl_sub("stream-room-messages", &[_]json.Value{
+            json.Value{ .string = "__my_messages__" },
+            json.Value{ .bool = true },
+        });
+    }
+
+    pub fn joinRooms(_: @This(), _: []const u8) void {}
+
+    pub fn ddl_method(this: *@This(), method: []const u8, params: []const LoginMethod) !void {
         const id = try std.fmt.allocPrint(this.allocator, "{d}", .{this.nextId});
         defer this.allocator.free(id);
         this.nextId += 1;
 
-        const msg: Msg = .{
+        const msg: MethodMsg = .{
             .msg = "method",
             .id = id,
-            .method = "login",
-            .params = &[_]LoginMethod{
-                LoginMethod{
-                    .password = password,
-                    .user = .{ .username = username },
-                },
-            },
+            .method = method,
+            .params = params,
         };
 
         const msgStr = try json.stringifyAlloc(this.allocator, msg, .{});
         defer this.allocator.free(msgStr);
-        try this.client.writeText(msgStr);
+        try this._write(msgStr);
+    }
+
+    pub fn ddl_sub(this: *@This(), topic: []const u8, params: []const json.Value) !void {
+        const id = try std.fmt.allocPrint(this.allocator, "{d}", .{this.nextId});
+        defer this.allocator.free(id);
+        this.nextId += 1;
+
+        const msg: SubMsg = .{
+            .msg = "sub",
+            .id = id,
+            .name = topic,
+            .params = params,
+        };
+
+        const msgStr = try json.stringifyAlloc(this.allocator, msg, .{});
+        defer this.allocator.free(msgStr);
+        try this._write(msgStr);
+    }
+
+    fn _write(this: *@This(), msg: []u8) !void {
+        std.debug.print("snd {s}\n", .{msg});
+        try this.client.write(msg);
     }
 
     pub fn serverMessage(_: *@This(), data: []u8) !void {
         std.debug.print("recvd {s}\n", .{data});
     }
 };
-
-fn infiniteLoop(_: std.mem.Allocator, client: websocket.Client) void {
-    // echo messages back to the server until the connection is closed
-    while (true) {
-
-        // since we didn't set a timeout, client.read() will either
-        // return a message or an error (i.e. it won't return null)
-        const message = (try client.read()) orelse {
-            // no message after our 1 second
-            std.debug.print(".", .{});
-            continue;
-        };
-
-        // must be called once you're done processing the request
-        defer client.done(message);
-
-        switch (message.type) {
-            .text, .binary => {
-                std.debug.print("received: {s}\n", .{message.data});
-                try client.write(message.data);
-            },
-            .ping => try client.writePong(message.data),
-            .pong => {},
-            .close => {
-                try client.close(.{});
-                break;
-            },
-        }
-    }
-}

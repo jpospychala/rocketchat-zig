@@ -16,7 +16,7 @@ pub fn main() !void {
     const password = try getEnv(allocator, "RC_PASSWORD");
 
     var client = try rocketchat.RC.init(allocator, .{
-        .port = 443,
+        .port = 443, // 3000,
         .host = host,
         .tls = true,
     });
@@ -26,9 +26,22 @@ pub fn main() !void {
     try client.startLoop();
 
     try client.login(username, password);
+    try client.reactToMessages(processMessages);
+    try client.subscribeToMessages();
+    client.joinRooms("testtesttest");
 
     client.join();
-    //    client.joinRooms();
+}
+
+fn processMessages(client: *rocketchat.RC, message: rocketchat.RcMsg) void {
+    //if (message.u._id === myUserId) return;
+    const roomname = try client.getRoomName(message.rid);
+    if (!std.mem.eql(u8, roomname, "testtesttest")) {
+        return;
+    }
+    std.debug.print("< {s}\n", .{message.msg});
+    //const response = "nie wiem";
+    //try client.sendToRoomId(response, message.rid);
 }
 
 fn getEnv(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
