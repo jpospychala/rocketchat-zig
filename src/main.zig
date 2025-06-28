@@ -36,7 +36,7 @@ pub fn main() !void {
         std.debug.print("{s} {s}: {s}\n", .{ room, message.u.?.username, message.msg });
 
         if (!std.mem.eql(u8, message.rid, roomId)) {
-            return;
+            continue;
         }
 
         if (std.mem.indexOfScalar(u8, message.msg, '?')) |_| {
