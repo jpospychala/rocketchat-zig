@@ -85,7 +85,9 @@ const ServerMessageChangedFields = struct {
 pub const NewMessage = struct {
     rid: []u8, // room id
     msg: []u8,
-    bot: ?bool = null,
+    //bot: struct {
+    //    i: []u8,
+    //},
 };
 
 pub const Message = struct {

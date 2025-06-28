@@ -15,18 +15,14 @@ pub const RC = struct {
     awaitList: comm.AwaitList(json.Value),
     messages: comm.Channel(proto.Message),
 
-    pub fn init(allocator: std.mem.Allocator, config: websocket.Client.Config) !RC {
-        const client = try websocket.Client.init(allocator, config);
-
-        const this = RC{
+    pub fn init(allocator: std.mem.Allocator, config: websocket.Client.Config) !@This() {
+        return @This(){
             .host = config.host,
-            .client = client,
+            .client = try websocket.Client.init(allocator, config),
             .allocator = allocator,
             .awaitList = comm.AwaitList(json.Value).init(allocator),
             .messages = comm.Channel(proto.Message).init(allocator),
         };
-
-        return this;
     }
 
     pub fn deinit(this: *@This()) void {
@@ -114,7 +110,9 @@ pub const RC = struct {
         params[0] = proto.NewMessage{
             .rid = roomId,
             .msg = message,
-            .bot = false,
+            //.bot = .{
+            //   .i = try this.allocator.dupe(u8, "123"),
+            //},
         };
         _ = try this.ddl_method("sendMessage", proto.MethodParams{
             .sendMessage = params,
